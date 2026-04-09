@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>もじさがしクエスト - 47都道府県編</title>
+    <title>もじさがしクエスト - 入力回答編</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=DotGothic16&family=Kiwi+Maru:wght@500&display=swap');
@@ -45,17 +45,10 @@
             justify-content: center;
             background: #1e293b;
             border: 1px solid #334155;
-            font-size: 1.15rem;
+            font-size: 1.25rem;
             font-weight: bold;
-            cursor: pointer;
-            transition: all 0.1s;
+            transition: all 0.3s;
             user-select: none;
-        }
-
-        .grid-cell.selected {
-            background: #6366f1;
-            color: white;
-            transform: scale(0.9);
         }
 
         .grid-cell.found {
@@ -63,22 +56,13 @@
             color: white;
             border-color: #10b981;
             animation: pulse 0.5s ease-out;
+            z-index: 10;
         }
 
         @keyframes pulse {
             0% { transform: scale(1); }
             50% { transform: scale(1.2); }
             100% { transform: scale(1); }
-        }
-
-        .axis-label {
-            color: #6366f1;
-            font-weight: bold;
-            font-size: 0.75rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #0f172a;
         }
 
         .word-card {
@@ -121,13 +105,38 @@
             white-space: nowrap;
         }
 
-        .stream-info {
-            background: rgba(99, 102, 241, 0.1);
-            border-radius: 10px;
-            padding: 8px;
-            font-size: 0.8rem;
-            text-align: center;
-            border: 1px dashed #6366f1;
+        .input-area {
+            background: #1e293b;
+            border: 2px solid #6366f1;
+            padding: 12px;
+            border-radius: 16px;
+            display: flex;
+            gap: 8px;
+        }
+
+        input[type="text"] {
+            background: transparent;
+            border-bottom: 2px solid #475569;
+            flex-grow: 1;
+            padding: 4px 8px;
+            color: white;
+            outline: none;
+            font-size: 1.2rem;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            border-color: #818cf8;
+        }
+
+        .shake {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
         }
     </style>
 </head>
@@ -140,7 +149,7 @@
             <div id="theme-display" class="text-sm text-yellow-400 font-bold mt-1">テーマ: 47都道府県</div>
         </header>
 
-        <!-- Word List (Hidden mode) -->
+        <!-- Word List -->
         <div class="bg-slate-800/50 p-2 rounded-xl">
             <div class="flex justify-between items-center mb-1">
                 <span class="text-[10px] font-bold text-slate-400 px-2 uppercase tracking-tighter">見つける県名 (残り <span id="remaining-count">0</span>)</span>
@@ -153,19 +162,25 @@
         <!-- Main Game Board -->
         <div class="flex-grow flex items-center justify-center overflow-hidden">
             <div class="w-full bg-slate-900 p-1 rounded-lg border-2 border-slate-700 shadow-xl overflow-hidden">
-                <div id="game-container" class="grid gap-0.5" style="grid-template-columns: 25px repeat(10, 1fr);">
+                <!-- ラベルを削除し、グリッドのみを表示 -->
+                <div id="game-container" class="grid gap-0.5" style="grid-template-columns: repeat(10, 1fr);">
                     <!-- Grid generated here -->
                 </div>
             </div>
         </div>
 
+        <!-- Input Area -->
+        <div class="input-area mb-2">
+            <input type="text" id="answer-input" placeholder="県名を入力（ひらがなOK）" autocomplete="off">
+            <button onclick="handleAnswerSubmit()" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-lg font-bold transition">
+                回答
+            </button>
+        </div>
+
         <!-- Footer -->
         <footer class="pb-2 flex flex-col gap-2">
-            <div class="stream-info text-indigo-200">
-                隠れた都道府県を予想してコメントしてね！
-            </div>
-            <button onclick="initGame()" class="w-full bg-indigo-600 hover:bg-indigo-500 py-3 rounded-xl font-bold transition shadow-lg text-sm">
-                次の都道府県へ
+            <button onclick="initGame()" class="w-full bg-slate-700 hover:bg-slate-600 py-3 rounded-xl font-bold transition shadow-lg text-sm">
+                新しい問題へ
             </button>
         </footer>
     </div>
@@ -175,7 +190,6 @@
     <script>
         const GRID_SIZE = 10;
         
-        // 47都道府県データ（カタカナ表記）
         const PREFECTURES = [
             'ホッカイドウ', 'アオモリ', 'イワテ', 'ミヤギ', 'アキタ', 'ヤマガタ', 'フクシマ',
             'イバラキ', 'トチギ', 'グンマ', 'サイタマ', 'チバ', 'トウキョウ', 'カナガワ',
@@ -187,22 +201,31 @@
         ];
 
         let grid = [];
+        let wordLocations = {};
         let wordsToFind = [];
         let foundWords = [];
-        let isSelecting = false;
-        let selectionStart = null;
-        let selectedCells = [];
+
+        // ひらがなをカタカナに変換する関数
+        function toKatakana(str) {
+            return str.replace(/[ぁ-ん]/g, function(s) {
+                return String.fromCharCode(s.charCodeAt(0) + 0x60);
+            });
+        }
 
         function initGame() {
-            // 47の中からランダムに6つを選択
             wordsToFind = [...PREFECTURES].sort(() => Math.random() - 0.5).slice(0, 6);
             foundWords = [];
+            wordLocations = {};
             
             createGrid();
             placeWords();
             fillEmptyCells();
             renderGrid();
             updateUI();
+            
+            const input = document.getElementById('answer-input');
+            input.value = '';
+            input.focus();
         }
 
         function createGrid() {
@@ -214,11 +237,9 @@
                 let placed = false;
                 let attempts = 0;
                 while (!placed && attempts < 200) {
-                    // 縦、横、斜めの全方向
                     const directions = [{x: 1, y: 0}, {x: 0, y: 1}, {x: 1, y: 1}, {x: 1, y: -1}];
                     const dir = directions[Math.floor(Math.random() * directions.length)];
                     
-                    // 開始位置の制約を計算
                     let startX, startY;
                     if (dir.x === 1) startX = Math.floor(Math.random() * (GRID_SIZE - word.length));
                     else startX = Math.floor(Math.random() * GRID_SIZE);
@@ -228,12 +249,17 @@
                     else startY = Math.floor(Math.random() * GRID_SIZE);
                     
                     if (canPlace(word, startX, startY, dir)) {
+                        let locations = [];
                         for (let i = 0; i < word.length; i++) {
-                            grid[startY + (i * dir.y)][startX + (i * dir.x)] = {
+                            const nx = startX + (i * dir.x);
+                            const ny = startY + (i * dir.y);
+                            grid[ny][nx] = {
                                 char: word[i],
                                 isWord: true
                             };
+                            locations.push({x: nx, y: ny});
                         }
+                        wordLocations[word] = locations;
                         placed = true;
                     }
                     attempts++;
@@ -267,34 +293,15 @@
             const container = document.getElementById('game-container');
             container.innerHTML = '';
 
-            container.appendChild(createLabel(''));
-            for (let i = 0; i < GRID_SIZE; i++) {
-                container.appendChild(createLabel(String.fromCharCode(65 + i)));
-            }
-
             for (let y = 0; y < GRID_SIZE; y++) {
-                container.appendChild(createLabel(y + 1));
                 for (let x = 0; x < GRID_SIZE; x++) {
                     const cellEl = document.createElement('div');
                     cellEl.className = 'grid-cell rounded-sm';
                     cellEl.textContent = grid[y][x].char;
-                    cellEl.dataset.x = x;
-                    cellEl.dataset.y = y;
-
-                    cellEl.addEventListener('mousedown', startSelection);
-                    cellEl.addEventListener('mouseenter', updateSelection);
-                    cellEl.addEventListener('touchstart', (e) => { e.preventDefault(); startSelection(e); }, {passive: false});
-
+                    cellEl.id = `cell-${x}-${y}`;
                     container.appendChild(cellEl);
                 }
             }
-        }
-
-        function createLabel(text) {
-            const el = document.createElement('div');
-            el.className = 'axis-label';
-            el.textContent = text;
-            return el;
         }
 
         function updateUI() {
@@ -312,98 +319,36 @@
             document.getElementById('remaining-count').textContent = wordsToFind.length - foundWords.length;
         }
 
-        function startSelection(e) {
-            isSelecting = true;
-            let target = e.target;
-            if (e.touches) {
-                target = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
-            }
-            if (!target || !target.classList.contains('grid-cell')) return;
+        function handleAnswerSubmit() {
+            const input = document.getElementById('answer-input');
+            // 入力値をカタカナに変換して判定
+            const answer = toKatakana(input.value.trim());
             
-            selectionStart = { x: parseInt(target.dataset.x), y: parseInt(target.dataset.y) };
-            clearSelection();
-            target.classList.add('selected');
-            selectedCells = [target];
-        }
-
-        function updateSelection(e) {
-            if (!isSelecting) return;
-            let target = e.target;
-            if (e.touches) {
-                target = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
-            }
-            if (!target || !target.classList.contains('grid-cell')) return;
-
-            const current = { x: parseInt(target.dataset.x), y: parseInt(target.dataset.y) };
-
-            const dx = Math.abs(current.x - selectionStart.x);
-            const dy = Math.abs(current.y - selectionStart.y);
-
-            if (dx === 0 || dy === 0 || dx === dy) {
-                clearSelection();
-                const cells = document.querySelectorAll('.grid-cell');
-                selectedCells = [];
-
-                const steps = Math.max(dx, dy);
-                const stepX = dx === 0 ? 0 : (current.x > selectionStart.x ? 1 : -1);
-                const stepY = dy === 0 ? 0 : (current.y > selectionStart.y ? 1 : -1);
-
-                for (let i = 0; i <= steps; i++) {
-                    const cx = selectionStart.x + (i * stepX);
-                    const cy = selectionStart.y + (i * stepY);
-                    const foundCell = Array.from(cells).find(c => parseInt(c.dataset.x) === cx && parseInt(c.dataset.y) === cy);
-                    if (foundCell) {
-                        foundCell.classList.add('selected');
-                        selectedCells.push(foundCell);
-                    }
-                }
-            }
-        }
-
-        document.addEventListener('touchmove', (e) => {
-            if (isSelecting) {
-                e.preventDefault();
-                updateSelection(e);
-            }
-        }, { passive: false });
-
-        function endSelection() {
-            if (!isSelecting) return;
-            isSelecting = false;
-
-            const selectedWord = selectedCells.map(c => c.textContent).join('');
-            const reversedWord = selectedWord.split('').reverse().join('');
-
-            const foundOne = checkWord(selectedWord) || checkWord(reversedWord);
-            
-            if (!foundOne) {
-                clearSelection();
-            }
-        }
-
-        function checkWord(wordStr) {
-            if (wordsToFind.includes(wordStr) && !foundWords.includes(wordStr)) {
-                foundWords.push(wordStr);
+            if (wordsToFind.includes(answer) && !foundWords.includes(answer)) {
+                foundWords.push(answer);
                 
-                selectedCells.forEach(cell => {
-                    cell.classList.remove('selected');
-                    cell.classList.add('found');
+                const locations = wordLocations[answer];
+                locations.forEach(loc => {
+                    const cell = document.getElementById(`cell-${loc.x}-${loc.y}`);
+                    if (cell) cell.classList.add('found');
                 });
 
-                showToast(`正解！「${wordStr}」`);
+                showToast(`正解！「${answer}」`);
                 updateUI();
+                input.value = '';
 
                 if (foundWords.length === wordsToFind.length) {
-                    setTimeout(() => showToast("🎉 ALL PREFECTURES FOUND! 🎉"), 500);
+                    setTimeout(() => showToast("🎉 コンプリート！ 🎉"), 500);
                 }
-                return true;
+            } else {
+                input.parentElement.classList.add('shake');
+                setTimeout(() => input.parentElement.classList.remove('shake'), 500);
             }
-            return false;
         }
 
-        function clearSelection() {
-            document.querySelectorAll('.grid-cell').forEach(c => c.classList.remove('selected'));
-        }
+        document.getElementById('answer-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleAnswerSubmit();
+        });
 
         function showToast(msg) {
             const toast = document.getElementById('toast');
@@ -412,8 +357,6 @@
             setTimeout(() => { toast.style.display = 'none'; }, 1500);
         }
 
-        window.addEventListener('mouseup', endSelection);
-        window.addEventListener('touchend', endSelection);
         window.onload = initGame;
     </script>
 </body>
