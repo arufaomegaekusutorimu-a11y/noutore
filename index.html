@@ -140,6 +140,10 @@
             font-size: clamp(1rem, 6.5vw, 1.85rem); /* 画面幅に応じて可変 */
             white-space: nowrap;
             text-align: center;
+            font-weight: bold;
+            color: white;
+            margin-top: 0.5rem;
+            letter-spacing: -0.05em;
         }
     </style>
 </head>
@@ -157,8 +161,11 @@
                 <div class="meter-unit"></div>
             </div>
             <div class="text-lg text-yellow-400 font-bold mt-2 pixel-font">レベル <span id="level-number">1</span></div>
-            <!-- サイズ調整されたテキスト -->
-            <div class="banner-text text-white mt-2 font-bold tracking-tighter uppercase">都道府県を探してコメントしよう</div>
+            
+            <!-- メインテキスト -->
+            <div class="banner-text uppercase">都道府県を探してコメントしよう</div>
+            <!-- サブテキスト：メインと同じスタイル -->
+            <div class="banner-text uppercase">初見さん大歓迎</div>
         </header>
 
         <div class="flex-grow flex items-center justify-center overflow-hidden py-4">
@@ -197,7 +204,7 @@
             'フクオカ', 'サガ', 'ナガサキ', 'クマモト', 'オオイタ', 'ミヤザキ', 'カゴシマ', 'オキナワ'
         ];
 
-        // 8方向の定義（右、下、右下、左下、左、上、左上、右上）
+        // 8方向の定義
         const DIRECTIONS = [
             {x: 1, y: 0},   // 右
             {x: 0, y: 1},   // 下
@@ -314,7 +321,6 @@
         }
 
         function findWordOnGrid(word) {
-            // 盤面上の全セルから全8方向をチェック
             for (let y = 0; y < GRID_SIZE; y++) {
                 for (let x = 0; x < GRID_SIZE; x++) {
                     for (const dir of DIRECTIONS) {
