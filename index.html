@@ -197,6 +197,18 @@
             'フクオカ', 'サガ', 'ナガサキ', 'クマモト', 'オオイタ', 'ミヤザキ', 'カゴシマ', 'オキナワ'
         ];
 
+        // 8方向の定義（右、下、右下、左下、左、上、左上、右上）
+        const DIRECTIONS = [
+            {x: 1, y: 0},   // 右
+            {x: 0, y: 1},   // 下
+            {x: 1, y: 1},   // 右下
+            {x: -1, y: 1},  // 左下
+            {x: -1, y: 0},  // 左
+            {x: 0, y: -1},  // 上
+            {x: -1, y: -1}, // 左上
+            {x: 1, y: -1}   // 右上
+        ];
+
         let grid = [];
         let hiddenWords = []; 
         let allFoundWords = []; 
@@ -239,17 +251,10 @@
             hiddenWords.forEach(word => {
                 let placed = false;
                 let attempts = 0;
-                while (!placed && attempts < 500) {
-                    const directions = [{x: 1, y: 0}, {x: 0, y: 1}, {x: 1, y: 1}, {x: 1, y: -1}];
-                    const dir = directions[Math.floor(Math.random() * directions.length)];
-                    
-                    let startX, startY;
-                    if (dir.x === 1) startX = Math.floor(Math.random() * (GRID_SIZE - word.length + 1));
-                    else startX = Math.floor(Math.random() * GRID_SIZE);
-
-                    if (dir.y === 1) startY = Math.floor(Math.random() * (GRID_SIZE - word.length + 1));
-                    else if (dir.y === -1) startY = Math.floor(Math.random() * (GRID_SIZE - word.length + 1)) + (word.length - 1);
-                    else startY = Math.floor(Math.random() * GRID_SIZE);
+                while (!placed && attempts < 1000) {
+                    const dir = DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)];
+                    const startX = Math.floor(Math.random() * GRID_SIZE);
+                    const startY = Math.floor(Math.random() * GRID_SIZE);
                     
                     if (canPlace(word, startX, startY, dir)) {
                         for (let i = 0; i < word.length; i++) {
@@ -309,10 +314,10 @@
         }
 
         function findWordOnGrid(word) {
-            const directions = [{x: 1, y: 0}, {x: 0, y: 1}, {x: 1, y: 1}, {x: 1, y: -1}];
+            // 盤面上の全セルから全8方向をチェック
             for (let y = 0; y < GRID_SIZE; y++) {
                 for (let x = 0; x < GRID_SIZE; x++) {
-                    for (const dir of directions) {
+                    for (const dir of DIRECTIONS) {
                         let match = true;
                         let coords = [];
                         for (let i = 0; i < word.length; i++) {
@@ -371,7 +376,6 @@
                     }, 500);
                 }
             } else {
-                // 不正解時のトースト表示を削除し、入力エリアのシェイクのみ実行
                 triggerError(input);
             }
         }
