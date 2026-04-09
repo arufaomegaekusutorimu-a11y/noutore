@@ -89,6 +89,7 @@
             100% { transform: scale(1); }
         }
 
+        /* トーストは「すでに回答済み」などのエラー時のみ使用 */
         .floating-message {
             position: fixed;
             top: 40%;
@@ -164,8 +165,8 @@
             
             <!-- メインテキスト -->
             <div class="banner-text uppercase">都道府県を探してコメントしよう</div>
-            <!-- サブテキスト：メインと同じスタイル -->
-            <div class="banner-text uppercase">初見さん大歓迎</div>
+            <!-- サブテキスト -->
+            <div class="banner-text uppercase">初見さん大歓迎！</div>
         </header>
 
         <div class="flex-grow flex items-center justify-center overflow-hidden py-4">
@@ -204,7 +205,6 @@
             'フクオカ', 'サガ', 'ナガサキ', 'クマモト', 'オオイタ', 'ミヤザキ', 'カゴシマ', 'オキナワ'
         ];
 
-        // 8方向の定義
         const DIRECTIONS = [
             {x: 1, y: 0},   // 右
             {x: 0, y: 1},   // 下
@@ -349,6 +349,7 @@
             
             if (!answer) return;
 
+            // 回答済みチェック（トースト表示あり）
             if (allFoundWords.includes(answer)) {
                 showToast("もう見つけています！");
                 input.value = '';
@@ -362,26 +363,26 @@
 
             const coords = findWordOnGrid(answer);
             if (coords) {
+                // 正解時
                 allFoundWords.push(answer);
                 coords.forEach(loc => {
                     const cell = document.getElementById(`cell-${loc.x}-${loc.y}`);
                     if (cell) cell.classList.add('found');
                 });
 
-                showToast(`正解！「${answer}」`);
+                // 正解時のトースト（showToast）を削除
                 updateUI();
                 input.value = '';
 
                 if (allFoundWords.length >= TARGET_COUNT) {
                     isTransitioning = true;
+                    // レベルクリア時のトーストも削除し、そのまま次へ
                     setTimeout(() => {
-                        showToast("🎉 LEVEL CLEAR! 🎉");
-                        setTimeout(() => {
-                            initGame(true);
-                        }, 2000);
-                    }, 500);
+                        initGame(true);
+                    }, 1500);
                 }
             } else {
+                // 不正解時（シェイクのみ）
                 triggerError(input);
             }
         }
